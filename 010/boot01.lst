@@ -1,0 +1,92 @@
+debug
+
+DEBUG-86  version 1.01
+>r
+AX=0000  BX=0000  CX=0000  DX=0000  SP=005A  BP=0000  SI=0000  DI=0000  
+DS=046F  ES=046F  SS=046F  CS=046F  IP=0100   NV UP DI PL NZ NA PO NC 
+046F:0100 33C0          XOR     AX,AX                   
+>l 0100 1 0 1
+>u cs:100
+046F:0100 33C0          XOR     AX,AX                   
+046F:0102 8ED8          MOV     DS,AX                   
+046F:0104 8EC0          MOV     ES,AX                   
+046F:0106 8ED0          MOV     SS,AX                   
+046F:0108 FC            UP                              
+046F:0109 BF0004        MOV     DI,0400                 
+046F:010C BA3300        MOV     DX,0033                 
+046F:010F B302          MOV     BL,02                   
+046F:0111 8AC3          MOV     AL,BL                   
+046F:0113 E632          OUTB    32                      
+046F:0115 B98000        MOV     CX,0080                 
+046F:0118 E434          INB     34                      
+046F:011A A820          TEST    AL,20                   
+046F:011C B088          MOV     AL,88                   
+046F:011E 7502          JNZ     0122                    
+>u
+046F:0120 B08C          MOV     AL,8C                   
+046F:0122 E630          OUTB    30                      
+046F:0124 B0B1          MOV     AL,B1                   
+046F:0126 E634          OUTB    34                      
+046F:0128 E434          INB     34                      
+046F:012A D0C8          ROR     AL                      
+046F:012C 720B          JC      0139                    
+046F:012E E433          INB     33                      
+046F:0130 AA            STOB                            
+046F:0131 E2F5          LOOP    0128                    
+046F:0133 E434          INB     34                      
+046F:0135 D0C8          ROR     AL                      
+046F:0137 73FA          JNC     0133                    
+046F:0139 E430          INB     30                      
+046F:013B 249C          AND     AL,9C                   
+046F:013D 75D2          JNZ     0111                    
+046F:013F 4A            DEC     DX                      
+>u
+046F:0140 7410          JZ      0152                    
+046F:0142 FEC3          INC     BL                      
+046F:0144 82FB1B        CMP     BL,1B                   
+046F:0147 75C8          JNZ     0111                    
+046F:0149 32DB          XOR     BL,BL                   
+046F:014B 42            INC     DX                      
+046F:014C B058          MOV     AL,58                   
+046F:014E E630          OUTB    30                      
+046F:0150 EBE1          JP      0133                    
+046F:0152 B84000        MOV     AX,0040                 
+046F:0155 8ED0          MOV     SS,AX                   
+046F:0157 8EC0          MOV     ES,AX                   
+046F:0159 8ED8          MOV     DS,AX                   
+046F:015B EA00004000    JMP     0000,0040               
+>u
+046F:0160 867708        XCHG    DH,[BX+08]              
+046F:0163 0823          OR      [BP+DI],AH              
+046F:0165 0B78B1        OR      DI,[BX+SI-4F]           
+046F:0168 CA7501        RET     L,0175                  
+046F:016B F1            DB      F1                      
+046F:016C 3DCA54        CMP     AX,54CA                 
+046F:016F 01F5          ADD     BP,SI                   
+046F:0171 08C3          OR      BL,AL                   
+046F:0173 59            POP     CX                      
+046F:0174 01ED          ADD     BP,BP                   
+046F:0176 4B            DEC     BX                      
+046F:0177 0002          ADD     [BP+SI],AL              
+046F:0179 0B2A          OR      BP,[BP+SI]              
+046F:017B 06            PUSH    ES                      
+046F:017C 0009          ADD     [BX+DI],CL              
+046F:017E EB21          JP      01A1                    
+>u
+046F:0180 0000          ADD     [BX+SI],AL              
+046F:0182 0000          ADD     [BX+SI],AL              
+046F:0184 0000          ADD     [BX+SI],AL              
+046F:0186 0000          ADD     [BX+SI],AL              
+046F:0188 0000          ADD     [BX+SI],AL              
+046F:018A 0000          ADD     [BX+SI],AL              
+046F:018C 0000          ADD     [BX+SI],AL              
+046F:018E 0000          ADD     [BX+SI],AL              
+046F:0190 0000          ADD     [BX+SI],AL              
+046F:0192 0000          ADD     [BX+SI],AL              
+046F:0194 0000          ADD     [BX+SI],AL              
+046F:0196 0000          ADD     [BX+SI],AL              
+046F:0198 0000          ADD     [BX+SI],AL              
+046F:019A 0000          ADD     [BX+SI],AL              
+046F:019C 0000          ADD     [BX+SI],AL              
+046F:019E 0000          ADD     [BX+SI],AL              
+>
