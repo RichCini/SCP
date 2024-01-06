@@ -45,16 +45,42 @@
 
 			MAXCALL EQU     36
 			MAXCOM  EQU     41
-			INTBASE EQU     80H
+			INTBASE EQU     80H		; INT20??
 			INTTAB  EQU     20H
+
+			; Program Base/PSP stuff
 			ENTRYPOINTSEG   EQU     0CH
 			ENTRYPOINT      EQU     INTBASE+40H
 			CONTC   EQU     INTTAB+3
 			EXIT    EQU     INTBASE+8
+			INT21	EQU	INTBASE+0Ch
 			LONGJUMP EQU    0EAH
 			LONGCALL EQU    9AH
 			MAXDIF  EQU     0FFFH
 			SAVEXIT EQU     10
+
+			;PSP offsets
+			B_INT20		EQU	0	; W INT20
+			B_ENDMEM	EQU	2	; W first unavailale segment
+			B_RSVD1		EQU	4	; B 04 reserved
+			B_LONGCALL	EQU	5	; B opcode for loncall
+			B_ENTRYL	EQU	6	; W farptr DOS entry LSB
+			B_ENTRYH	EQU	8	; W farptr DOS entry MSB
+			B_EXIT		EQU	0AH	; dd exit address (int 22h)
+			B_CTRLC		EQU	0EH 	; dd ctrl-c address (int 23h)
+			B_FATAL		EQU	12H 	; dd fatal error address (int 24h)
+			B_PARENT	EQU	16H 	; dw parent PSP
+			B_OPENF		EQU	18H	; b open files (FF=unused)
+			;19H  19 BYTES    reserved
+			;2CH  WORD        segment of environment block
+			;2EH  DWORD       old stack address
+			;32H  BYTE        maximum open files
+			;34H  DWORD       old file address
+			;36H  25 BYTES    reserved
+			;50H  WORD        long call address to DOS INT 21H handler
+			;5CH  16 BYTES    default FCB #1
+			;6CH  16 BYTES    default FCB #2
+			;80H  128 BYTES   command tail and default DTA
 
 			; Field definition for FCBs
 
@@ -177,17 +203,17 @@
 046F:086A 98            CBW                             
 046F:086B 8BC8          MOV     CX,AX                   
 046F:086D 2E            SEG     CS                      
-046F:086E A2920F        MOV     [0F92],AL 	;numio
+046F:086E A2920F        MOV     [NUMIO],AL 	;0F92 numio
 046F:0871 8BF8          MOV     DI,AX                   
 046F:0873 D1E7          SHL     DI                      
 046F:0875 B412          MOV     AH,12                   
 046F:0877 F6E4          MUL     AL,AH                   
-046F:0879 BB0610        MOV     BX,1006 	;drvtab
+046F:0879 BB0610        MOV     BX,DRVTAB	;1006 	;drvtab
 046F:087C 03FB          ADD     DI,BX                   
 046F:087E 03C7          ADD     AX,DI                   
 046F:0880 8BE8          MOV     BP,AX                   
 046F:0882 2E            SEG     CS                      
-046F:0883 A3110E        MOV     [0E11],AX
+046F:0883 A3110E        MOV     [MAXSEC],AX	;0E11
 
 		LAB200:
 046F:0886 2E            SEG     CS                      
@@ -242,7 +268,7 @@
 046F:08C0 5E            POP     SI                      
 046F:08C1 AD            LODW                            
 046F:08C2 2E            SEG     CS                      
-046F:08C3 0306110E      ADD     AX,[0E11]               
+046F:08C3 0306110E      ADD     AX,[MAXSEC]	;0E11
 046F:08C7 AB            STOW                            
 046F:08C8 B200          MOV     DL,00                   
 046F:08CA D1EA          SHR     DX                      
@@ -285,10 +311,10 @@
 046F:091B 8CCA          MOV     DX,CS                   
 046F:091D 8EDA          MOV     DS,DX                   
 046F:091F 03D5          ADD     DX,BP                   
-046F:0921 C706A90F8000  MOV     W,[0FA9],0080 	;DMAADD
-046F:0927 8916AB0F      MOV     [0FAB],DX       ;DMA+2
-046F:092B A10610        MOV     AX,[1006]	; DRVTAB 
-046F:092E A30410        MOV     [1004],AX	; CURDRV
+046F:0921 C706A90F8000  MOV     W,[DMAADD],0080		;0FA9 DMAADD
+046F:0927 8916AB0F      MOV     [DMAADD+2],DX		;DMA+2
+046F:092B A10610        MOV     AX,[DRVTAB]		; 1006 DRVTAB 
+046F:092E A30410        MOV     [CURDRV],AX		; 1004 CURDRV
 046F:0931 8BCA          MOV     CX,DX                   
 046F:0933 BB0F00        MOV     BX,000F                 
 
@@ -309,10 +335,10 @@
 046F:094A 890E0F0E      MOV     [ENDMEM],CX        ;0E0F       
 046F:094E 33C9          XOR     CX,CX                   
 046F:0950 8ED9          MOV     DS,CX                   
-046F:0952 C70688000001  MOV     W,[EXIT],0100	;EXIT 0088
-046F:0958 89168A00      MOV     [EXIT+2],DX	;EXIT+2   
-046F:095C C7068C000001  MOV     W,[008C],0100	;EXIT+4           
-046F:0962 89168E00      MOV     [008E],DX	;EXIT+6  
+046F:0952 C70688000001  MOV     W,[EXIT],0100	;EXIT 0088 == INT20
+046F:0958 89168A00      MOV     [EXIT+2],DX	;8A EXIT+2   
+046F:095C C7068C000001  MOV     W,[INT21],0100	;8C EXIT+4 == INT21??
+046F:0962 89168E00      MOV     [INT21+2],DX	;8E EXIT+6  
 046F:0966 E8EF0B        CALL	SETMEM		;1558                    
 046F:0969 BE1B00        MOV     SI,HEADER	;001B
 046F:096C E8320B        CALL    OUTMES                    
@@ -335,25 +361,25 @@
 046F:097C 58            POP     AX                      
 046F:097D 58            POP     AX                      
 046F:097E 2E            SEG     CS                      
-046F:097F 8F06AD0F      POP     [0FAD]		;TEMP
+046F:097F 8F06AD0F      POP     [CURPSP]		;TEMP
 046F:0983 9C            PUSHF                           
 046F:0984 FA            DI                              
 046F:0985 50            PUSH    AX                      
 046F:0986 2E            SEG     CS                      
-046F:0987 FF36AD0F      PUSH    [0FAD]		;TEMP
+046F:0987 FF36AD0F      PUSH    [CURPSP]		;TEMP
 046F:098B 82F924        CMP     CL,MAXCALL	;24                  
 046F:098E 77E9          JA      BADCALL		;0979                    
 046F:0990 8AE1          MOV     AH,CL
 		;992h
 		SAVREGS:		;switch to separate stack
 046F:0992 2E            SEG     CS                      
-046F:0993 89260210      MOV     [1002],SP	;SPSAVE
+046F:0993 89260210      MOV     [SPSAVE],SP	;SPSAVE
 046F:0997 2E            SEG     CS                      
-046F:0998 8C160010      MOV     [1000],SS	;SSSAVE       
+046F:0998 8C160010      MOV     [SSSAVE],SS	;SSSAVE       
 046F:099C 44            INC     SP                      
 046F:099D 44            INC     SP                      
 046F:099E 2E            SEG     CS                      
-046F:099F 8F06AD0F      POP     [0FAD]		;TEMP
+046F:099F 8F06AD0F      POP     [CURPSP]		;TEMP
 046F:09A3 8CCC          MOV     SP,CS                   
 046F:09A5 8ED4          MOV     SS,SP
 		;9a7h
@@ -377,7 +403,7 @@
 		;9bfh
 		LLEAVE:
 046F:09BF 2E            SEG     CS                      
-046F:09C0 A2EE0F        MOV     [0FEE],AL	;REGSAVE+AXSAVE
+046F:09C0 A2EE0F        MOV     [REGSAVE+AXSAVE],AL	;REGSAVE+AXSAVE
 046F:09C3 58            POP     AX                      
 046F:09C4 5B            POP     BX                      
 046F:09C5 59            POP     CX                      
@@ -389,7 +415,7 @@
 046F:09CB 07            POP     ES                      
 046F:09CC 17            POP     SS                      
 046F:09CD 2E            SEG     CS                      
-046F:09CE 8B260210      MOV     SP,[1002]	;SPSAVE
+046F:09CE 8B260210      MOV     SP,[SPSAVE]	;SPSAVE
 046F:09D2 CF            IRET
 
 		;9d3h
@@ -436,7 +462,7 @@
 			DW      NEWBASE
 			DW      BLKRD
 			DW      BLKWRT          ;40
-			DW      MAKEFCB
+			DW      MAKEFCB		; parse file name
 
 		; Unimplemented calls return 0
 		;System call
@@ -551,7 +577,7 @@
 046F:0AAF 803FE5        CMP     B,[BX],E5	;free entry?         
 046F:0AB2 74F2          JZ      GETENTRY		;0AA6                    
 046F:0AB4 8BF3          MOV     SI,BX                   
-046F:0AB6 BF930F        MOV     DI,0F93		;*** absolute
+046F:0AB6 BF930F        MOV     DI,NAME1		;*** absolute NAME1
 046F:0AB9 B90B00        MOV     CX,000B
 		WILDCRD:
 046F:0ABC F3            REPZ                            
@@ -602,7 +628,7 @@
 046F:0B02 E83B00        CALL    MOVNAME		;0B40                    
 046F:0B05 7236          JC      ERRET		;0B3D                    
 046F:0B07 83C605        ADD     SI,+05                  
-046F:0B0A BF9E0F        MOV     DI,0F9E		;*** absolute
+046F:0B0A BF9E0F        MOV     DI,NAME2		;*** absolute NAME2
 046F:0B0D E84900        CALL    LODNAME		;0B59                    
 046F:0B10 E875FF        CALL    FINDNAME	;0A88                    
 046F:0B13 7228          JC      ERRET		;0B3D
@@ -610,7 +636,7 @@
 046F:0B15 8AE0          MOV     AH,AL
 		REN1:
 046F:0B17 8BFB          MOV     DI,BX                   
-046F:0B19 BE9E0F        MOV     SI,0F9E		;*** absolute
+046F:0B19 BE9E0F        MOV     SI,NAME2		;*** absolute NAME2
 046F:0B1C B90B00        MOV     CX,000B         ; 11 chars      
 		NEWNAM:
 046F:0B1F AC            LODB                            
@@ -640,16 +666,16 @@
 		MOVNAME:
 046F:0B40 8CC8          MOV     AX,CS                   
 046F:0B42 8EC0          MOV     ES,AX                   
-046F:0B44 BF930F        MOV     DI,0F93 		;*** absolute
+046F:0B44 BF930F        MOV     DI,NAME1 		;*** absolute
 046F:0B47 8BF2          MOV     SI,DX                   
 046F:0B49 AC            LODB                            
 046F:0B4A 26            SEG     ES                      
-046F:0B4B 3806920F      CMP     [0F92],AL		;*** absolute
+046F:0B4B 3806920F      CMP     [NUMIO],AL		;*** absolute
 046F:0B4F 72EE          JC      RET5		;0B3F                    
 046F:0B51 98            CBW                             
 046F:0B52 95            XCHG    BP,AX                   
 046F:0B53 D1E5          SHL     BP                      
-046F:0B55 8BAE0410      MOV     BP,[BP+1004]
+046F:0B55 8BAE0410      MOV     BP,[BP+1004]	; CURDRV?
 		LODNAME:
 046F:0B59 B90B00        MOV     CX,000B        ;11     
 		MOVE2:
@@ -819,7 +845,7 @@
 		;c59
 		DIRCOMP:
 046F:0C59 8A6600        MOV     AH,[BP+00]	;DEVNUM?
-046F:0C5C A3090E        MOV     [0E09],AX	;*** absolute
+046F:0C5C A3090E        MOV     [DEVNUM],AX	;*** absolute
 046F:0C5F 98            CBW                             
 046F:0C60 034608        ADD     AX,[BP+DIRDIR]	;08
 046F:0C63 8BD0          MOV     DX,AX                   
@@ -832,7 +858,7 @@
 		CREATE:
 046F:0C6C E8D1FE        CALL    MOVNAME		;B40                    
 046F:0C6F 7237          JC      ERRET3		;0CA8                    
-046F:0C71 BF930F        MOV     DI,0F93		;NAME1 		;*** absolute
+046F:0C71 BF930F        MOV     DI,NAME1		;NAME1 		;*** absolute
 046F:0C74 B90B00        MOV     CX,000B		;11  
 046F:0C77 B03F          MOV     AL,"?"		;3F     
 046F:0C79 F2            REPNZ                           
@@ -892,7 +918,7 @@
 
 		FREESPOT:
 046F:0CD1 8BDF          MOV     BX,DI                   
-046F:0CD3 BE930F        MOV     SI,0F93		;1793 BP+FAT 		;*** absolute
+046F:0CD3 BE930F        MOV     SI,NAME1		;1793 BP+FAT 		;*** absolute
 046F:0CD6 B90500        MOV     CX,0005                 
 046F:0CD9 A4            MOVB                            
 046F:0CDA F3            REPZ                            
@@ -997,7 +1023,7 @@
 		;System call
 		ABORT:
 046F:0D5E 2E            SEG     CS                      
-046F:0D5F 8E1EAD0F      MOV     DS,[0FAD]	;cssave		;*** absolute
+046F:0D5F 8E1EAD0F      MOV     DS,[CURPSP]	;cssave		;*** absolute
 046F:0D63 33C0          XOR     AX,AX                   
 046F:0D65 8EC0          MOV     ES,AX                   
 046F:0D67 BE0A00        MOV     SI,SAVEXIT	;000A
@@ -1024,8 +1050,8 @@
 046F:0D8B 07            POP     ES                      
 046F:0D8C 1F            POP     DS                      
 046F:0D8D 17            POP     SS                      
-046F:0D8E 8B260210      MOV     SP,[1002]		;*** absolute
-046F:0D92 8E1EFC0F      MOV     DS,[0FFC]		;*** absolute
+046F:0D8E 8B260210      MOV     SP,[SPSAVE]		;*** absolute
+046F:0D92 8E1EFC0F      MOV     DS,[CSSAVE]		;*** absolute
 046F:0D96 2E            SEG     CS                      
 046F:0D97 FF2E0B0E      JMP     L,[EXITHOLD]		;*** absolute
 
@@ -1111,12 +1137,12 @@
 046F:0E0A 8EC3          MOV     ES,BX                   
 046F:0E0C 8CCB          MOV     BX,CS                   
 046F:0E0E 8EDB          MOV     DS,BX                   
-046F:0E10 A3B20F        MOV     [0FB2],AX 		;*** absolute
-046F:0E13 8916B00F      MOV     [0FB0],DX 		;*** absolute
-046F:0E17 8B1EA90F      MOV     BX,[0FA9]		;*** absolute
-046F:0E1B 891EB40F      MOV     [0FB4],BX		;*** absolute
+046F:0E10 A3B20F        MOV     [BYTPOS],AX 		;*** absolute
+046F:0E13 8916B00F      MOV     [FCB],DX 		;*** absolute
+046F:0E17 8B1EA90F      MOV     BX,[DMAADD]		;*** absolute
+046F:0E1B 891EB40F      MOV     [NEXTADD],BX		;*** absolute
 046F:0E1F C606AF0F00    MOV     B,[0FAF],00		;*** absolute
-046F:0E24 C706BA0F0000  MOV     W,[0FBA],0000		;*** absolute
+046F:0E24 C706BA0F0000  MOV     W,[LASTPOS],0000		;*** absolute
 046F:0E2A 8B7610        MOV     SI,[BP+10]              
 046F:0E2D E3D5          JCXZ    RET7		;0E04                    
 046F:0E2F 83C37F        ADD     BX,+7F                  
@@ -1190,7 +1216,7 @@
 046F:0EA6 E8B2FF        CALL    FNDCLUS		;0E5B                    
 046F:0EA9 0BC9          OR      CX,CX                   
 046F:0EAB 755C          JNZ     LOCF09		;0F09                    
-046F:0EAD 8A16B20F      MOV     DL,[0FB2]		;*** absolute
+046F:0EAD 8A16B20F      MOV     DL,[BYTPOS]		;*** absolute
 046F:0EB1 225602        AND     DL,[BP+02]              
 046F:0EB4 8B0EB60F      MOV     CX,[0FB6]		;*** absolute
 		RDLP:
@@ -1198,7 +1224,7 @@
 046F:0EBB 57            PUSH    DI                      
 046F:0EBC 50            PUSH    AX                      
 046F:0EBD 1E            PUSH    DS                      
-046F:0EBE 8E1EAB0F      MOV     DS,[0FAB]		;*** absolute
+046F:0EBE 8E1EAB0F      MOV     DS,[DMAADD+2]		;*** absolute
 046F:0EC2 E82CFE        CALL    REREAD		;0CF1                    
 046F:0EC5 1F            POP     DS                      
 046F:0EC6 59            POP     CX                      
@@ -1210,12 +1236,12 @@
 046F:0ED2 C606AF0F01    MOV     B,[0FAF],01		;*** absolute
 		;ed7
 		LOAD03:
-046F:0ED7 A1B80F        MOV     AX,[0FB8]		;*** absolute
-046F:0EDA 8B3EB00F      MOV     DI,[0FB0]		;*** absolute
+046F:0ED7 A1B80F        MOV     AX,[CLUSNUM]		;*** absolute
+046F:0EDA 8B3EB00F      MOV     DI,[FCB]		;*** absolute
 046F:0EDE 26            SEG     ES                      
 046F:0EDF 894516        MOV     [DI+16],AX              
-046F:0EE2 A1B20F        MOV     AX,[0FB2]		;*** absolute
-046F:0EE5 8B1EBA0F      MOV     BX,[0FBA]		;*** absolute
+046F:0EE2 A1B20F        MOV     AX,[BYTPOS]		;*** absolute
+046F:0EE5 8B1EBA0F      MOV     BX,[LASTPOS]		;*** absolute
 046F:0EE9 03C3          ADD     AX,BX                   
 046F:0EEB 26            SEG     ES                      
 046F:0EEC 3B4518        CMP     AX,[DI+18]              
@@ -1248,8 +1274,8 @@
 046F:0F19 733E          JNC     LOCF59		;0F59
 		WRTERRJ:
 046F:0F1B C606AF0F01    MOV     B,[0FAF],01 		;*** absolute
-046F:0F20 A1B20F        MOV     AX,[0FB2]		;*** absolute
-046F:0F23 8B3EB00F      MOV     DI,[0FB0]		;*** absolute
+046F:0F20 A1B20F        MOV     AX,[BYTPOS]		;*** absolute
+046F:0F23 8B3EB00F      MOV     DI,[FCB]		;*** absolute
 046F:0F27 C3            RET                             
 
 		;f28
@@ -1282,7 +1308,7 @@
 		LOCF58:
 046F:0F58 5B
 		LOCF59:
-046F:0F59 8A16B20F      MOV     DL,[0FB2]		;*** absolute
+046F:0F59 8A16B20F      MOV     DL,[BYTPOS]		;*** absolute
 046F:0F5D 225602        AND     DL,[BP+02]              
 046F:0F60 8B0EB60F      MOV     CX,[0FB6]		;*** absolute
 		NOTINBUF:
@@ -1290,7 +1316,7 @@
 046F:0F67 57            PUSH    DI                      
 046F:0F68 50            PUSH    AX                      
 046F:0F69 1E            PUSH    DS                      
-046F:0F6A 8E1EAB0F      MOV     DS,[0FAB]		;*** absolute DMAADD
+046F:0F6A 8E1EAB0F      MOV     DS,[DMAADD+2]		;*** absolute DMAADD
 046F:0F6E E8A0FD        CALL    DWRITE		;0D11                    
 046F:0F71 1F            POP     DS                      
 046F:0F72 59            POP     CX                      
@@ -1315,8 +1341,8 @@
 046F:0F94 E89700        CALL    ALLOCATE	;102E                    
 046F:0F97 7282          JC      WRTERRJ		;0F1B
 		UPDATE:
-046F:0F99 8B3EB00F      MOV     DI,[0FB0]		;*** absolute FCB
-046F:0F9D A1B20F        MOV     AX,[0FB2]		;*** absolute BYTPOS
+046F:0F99 8B3EB00F      MOV     DI,[FCB]		;*** absolute FCB FB0
+046F:0F9D A1B20F        MOV     AX,[BYTPOS]		;*** absolute BYTPOS
 046F:0FA0 26            SEG     ES                      
 046F:0FA1 894518        MOV     [DI+18],AX              ;filesiz
 046F:0FA4 26            SEG     ES                      
@@ -1362,16 +1388,16 @@
 046F:0FE7 74ED          JZ      OPTCLUS		;0FD6                    
 046F:0FE9 4B            DEC     BX
 		FINCLUS:
-046F:0FEA 891EB80F      MOV     [0FB8],BX 		;*** absolute CLUSNUM
+046F:0FEA 891EB80F      MOV     [CLUSNUM],BX 		;*** absolute 0FB8 CLUSNUM
 046F:0FEE 2BD1          SUB     DX,CX                   
 046F:0FF0 8BC2          MOV     AX,DX                   
 046F:0FF2 8BD9          MOV     BX,CX                   
 046F:0FF4 86DF          XCHG    BL,BH                   
 046F:0FF6 D1CB          ROR     BX                      
-046F:0FF8 8B36B40F      MOV     SI,[0FB4]		;*** absolute NEXTADD
+046F:0FF8 8B36B40F      MOV     SI,[NEXTADD]		;*** absolute 0FB4 NEXTADD
 046F:0FFC 03DE          ADD     BX,SI                   
-046F:0FFE 891EB40F      MOV     [0FB4],BX 		;*** absolute LASTPOS?
-046F:1002 010EBA0F      ADD     [0FBA],CX		;*** absolute
+046F:0FFE 891EB40F      MOV     [NEXTADD],BX 		;*** absolute LASTPOS?
+046F:1002 010EBA0F      ADD     [LASTPOS],CX		;*** absolute
 046F:1006 5A            POP     DX                      
 046F:1007 5B            POP     BX                      
 046F:1008 51            PUSH    CX                      
@@ -1428,7 +1454,7 @@
 046F:1057 42            INC     DX                      
 046F:1058 F7E2          MUL     AX,DX                   
 046F:105A 8BC8          MOV     CX,AX                   
-046F:105C 2B0EB20F      SUB     CX,[0FB2] 		;*** absolute
+046F:105C 2B0EB20F      SUB     CX,[BYTPOS] 		;*** absolute
 046F:1060 7702          JA      MAXREC		;1064                    
 046F:1062 33C9          XOR     CX,CX
 		MAXREC:
@@ -1466,7 +1492,7 @@
 046F:1092 87FB          XCHG    DI,BX                   
 046F:1094 0BFF          OR      DI,DI                   
 046F:1096 75CD          JNZ     RET11		;1065                    
-046F:1098 8B3EB00F      MOV     DI,[0FB0]		;*** absolute
+046F:1098 8B3EB00F      MOV     DI,[FCB]		;*** absolute
 046F:109C 26            SEG     ES                      
 046F:109D 895D14        MOV     [DI+14],BX              
 046F:10A0 810CFF0F      OR      W,[SI],0FFF
@@ -1497,14 +1523,15 @@
 
 		;System call
 		SRCHFRST:
-046F:10C6 E8BAF9        CALL    GETNAME		;0A83
+046F:10C6 E8BAF9        CALL    GETNAME		;0A83 GETFILE?
 		SAVPLCE:
 046F:10C9 722A          JC      KILLSRCH	;10F5                    
 046F:10CB A2040E        MOV     [0E04],AL 		;*** absolute
 046F:10CE 891E050E      MOV     [0E05],BX 		;*** absolute
 046F:10D2 892E070E      MOV     [0E07],BP		;*** absolute
 046F:10D6 8BF3          MOV     SI,BX                   
-046F:10D8 C43EA90F      LES     DI,[0FA9] 		;*** absolute
+046F:10D8 C43EA90F      LES     DI,[DMAADD] 		;*** absolute
+		NORMFCB:
 046F:10DC 8A4600        MOV     AL,[BP+00]              
 046F:10DF FEC0          INC     AL                      
 046F:10E1 AA            STOB                            
@@ -1541,7 +1568,7 @@
 046F:110B 8A6600        MOV     AH,[BP+00]              
 046F:110E 8B1E050E      MOV     BX,[0E05]		;*** absolute
 046F:1112 8B2E070E      MOV     BP,[0E07]		;*** absolute
-046F:1116 3B06090E      CMP     AX,[0E09]		;*** absolute
+046F:1116 3B06090E      CMP     AX,[DEVNUM]		;*** absolute
 046F:111A 7505          JNZ     1121                    
 046F:111C E879F9        CALL    CONTSRCH	;0A98                    
 046F:111F EBA8          JP      SAVPLCE		;10C9
@@ -1574,51 +1601,51 @@
 		;System call
 		SETDMA:
 046F:1146 2E            SEG     CS                      
-046F:1147 8916A90F      MOV     [0FA9],DX 		;*** absolute DMAADD
+046F:1147 8916A90F      MOV     [DMAADD],DX 		;*** absolute DMAADD
 046F:114B 2E            SEG     CS                      
-046F:114C 8C1EAB0F      MOV     [0FAB],DS		;*** absolute DMAADD+2
+046F:114C 8C1EAB0F      MOV     [DMAADD+2],DS		;*** absolute DMAADD+2
 046F:1150 C3            RET  
 
 		;System call
 		GETFATPT:
 046F:1151 8CC8          MOV     AX,CS                   
 046F:1153 8ED8          MOV     DS,AX                   
-046F:1155 8C0EFC0F      MOV     [0FFC],CS 		;*** absolute
-046F:1159 8B2E0410      MOV     BP,[1004] 		;*** absolute CURDRV
-046F:115D E844FA        CALL    0BA4                    
+046F:1155 8C0EFC0F      MOV     [CSSAVE],CS 		;*** absolute
+046F:1159 8B2E0410      MOV     BP,[CURDRV] 		;*** absolute 1004 CURDRV
+046F:115D E844FA        CALL    LOC40                    
 046F:1160 8B5E10        MOV     BX,[BP+10]              
 046F:1163 8A4602        MOV     AL,[BP+02]              
 046F:1166 FEC0          INC     AL                      
 046F:1168 8B560D        MOV     DX,[BP+0D]              
 046F:116B 4A            DEC     DX                      
 046F:116C C6460FFF      MOV     B,[BP+0F],FF            
-046F:1170 891EF00F      MOV     [0FF0],BX 		;*** absolute
-046F:1174 8916F40F      MOV     [0FF4],DX		;*** absolute
+046F:1170 891EF00F      MOV     [BXSAVE],BX 		;*** absolute 0FF0
+046F:1174 8916F40F      MOV     [DXSAVE],DX		;*** absolute 0FF4
 046F:1178 C3            RET                
 
 		;System call
 		GETDSKPT:
 046F:1179 2E            SEG     CS                      
-046F:117A 8C0EFC0F      MOV     [0FFC],CS		;*** absolute
+046F:117A 8C0EFC0F      MOV     [CSSAVE],CS		;*** absolute CSSAVE
 046F:117E 2E            SEG     CS                      
-046F:117F 8B1E0410      MOV     BX,[1004] 		;*** absolute curdrv
+046F:117F 8B1E0410      MOV     BX,[CURDRV] 		;*** absolute 1004
 046F:1183 2E            SEG     CS                      
-046F:1184 891EF00F      MOV     [0FF0],BX 		;*** absolute
+046F:1184 891EF00F      MOV     [BXSAVE],BX 		;*** absolute 0FF0
 046F:1188 C3            RET                             
 
 		;System call
 		DSKRESET:
 046F:1189 2E            SEG     CS                      
-046F:118A 8C1EAB0F      MOV     [0FAB],DS 		;*** absolute
+046F:118A 8C1EAB0F      MOV     [DMAADD+2],DS 		;*** absolute
 046F:118E 8CC8          MOV     AX,CS                   
 046F:1190 8ED8          MOV     DS,AX                   
-046F:1192 C706A90F8000  MOV     W,[0FA9],0080 		;*** absolute
-046F:1198 A10610        MOV     AX,[1006]		;*** absolute
-046F:119B A30410        MOV     [1004],AX		;*** absolute
+046F:1192 C706A90F8000  MOV     W,[DMAADD],0080 		;*** absolute
+046F:1198 A10610        MOV     AX,[DRVTAB]		;*** absolute 1006
+046F:119B A30410        MOV     [CURDRV],AX		;*** absolute 1004
 		DSKRST01:
-046F:119E 8A0E920F      MOV     CL,[0F92]		;*** absolute
+046F:119E 8A0E920F      MOV     CL,[NUMIO]		;*** absolute
 046F:11A2 B500          MOV     CH,00                   
-046F:11A4 BE0610        MOV     SI,1006
+046F:11A4 BE0610        MOV     SI,DRVTAB		;1006
 		WRTFAT:
 046F:11A7 AD            LODW                            
 046F:11A8 51            PUSH    CX                      
@@ -1635,7 +1662,7 @@
 		;System call
 		GETDRV:
 046F:11BB 2E            SEG     CS                      
-046F:11BC 8B2E0410      MOV     BP,[1004]		;*** absolute
+046F:11BC 8B2E0410      MOV     BP,[CURDRV]		;*** absolute 1004
 046F:11C0 8A4600        MOV     AL,[BP+00]              
 046F:11C3 C3            RET                             
 
@@ -1644,11 +1671,11 @@
 		INUSE:
 046F:11C4 8CC8          MOV     AX,CS                   
 046F:11C6 8ED8          MOV     DS,AX                   
-046F:11C8 8A0E920F      MOV     CL,[0F92]		;*** absolute
+046F:11C8 8A0E920F      MOV     CL,[NUMIO]		;*** absolute
 046F:11CC B500          MOV     CH,00                   
 046F:11CE 8BF1          MOV     SI,CX                   
 046F:11D0 D1E6          SHL     SI                      
-046F:11D2 81C60410      ADD     SI,1004		;*** absolute
+046F:11D2 81C60410      ADD     SI,CURDRV		;*** absolute 1004
 046F:11D6 BB0000        MOV     BX,0000                 
 046F:11D9 FD            DOWN                            
 		IULOOP:
@@ -1681,12 +1708,12 @@
 046F:11FD 8BDA          MOV     BX,DX                   
 046F:11FF 0E            PUSH    CS                      
 046F:1200 1F            POP     DS                      
-046F:1201 A0920F        MOV     AL,[0F92]		;*** absolute
+046F:1201 A0920F        MOV     AL,[NUMIO]		;*** absolute
 046F:1204 3AD8          CMP     BL,AL                   
 046F:1206 73F2          JNC	RET16		;11FA                    
 046F:1208 D1E3          SHL     BX                      
-046F:120A 8B970610      MOV     DX,[BX+1006]            
-046F:120E 89160410      MOV     [1004],DX		;*** absolute
+046F:120A 8B970610      MOV     DX,[BX+DRVTAB]	;1006
+046F:120E 89160410      MOV     [CURDRV],DX		;*** absolute 1004
 		RET17:
 046F:1212 C3            RET                             
 
@@ -1712,9 +1739,9 @@
 046F:1231 4A            DEC     DX                      
 		NEWLIN:
 046F:1232 2E            SEG     CS                      
-046F:1233 A0010E        MOV     AL,[0E01]		;*** absolute
+046F:1233 A0010E        MOV     AL,[CARPOS]		;*** absolute E01
 046F:1236 2E            SEG     CS                      
-046F:1237 A2020E        MOV     [0E02],AL		;*** absolute
+046F:1237 A2020E        MOV     [STARTPOS],AL		;*** absolute E02
 046F:123A 56            PUSH    SI                      
 046F:123B BF130E        MOV     DI,INBUF		;*** absolute
 046F:123E 8AE5          MOV     AH,CH                   
@@ -1758,7 +1785,7 @@
 046F:1281 5F            POP     DI                      
 046F:1282 80E1FE        AND     CL,FE                   
 046F:1285 8BE9          MOV     BP,CX                   
-046F:1287 FFA6AC0B      JMP     [BP+0BAC]	;*** absolute ESCFUNC
+046F:1287 FFA6AC0B      JMP     [BP+ESCFUNC]	;*** absolute 0BAC
 
 		ENDLIN:
 046F:128B AA            STOB                            
@@ -1794,7 +1821,7 @@
 		PUTNEW:
 046F:12BA E8E8FF        CALL    CRLF		;12A5                    
 046F:12BD 2E            SEG     CS                      
-046F:12BE A0020E        MOV     AL,[0E02]		;*** absolute
+046F:12BE A0020E        MOV     AL,[STARTPOS]		;*** absolute
 046F:12C1 E87A01        CALL    TAB		;143E                    
 046F:12C4 E96BFF        JMP     NEWLIN		;1232                    
 
@@ -1839,7 +1866,7 @@
 046F:1302 E2F2          LOOP    FNDPOS		;12F6
 		FIGTAB:
 046F:1304 2E            SEG     CS                      
-046F:1305 2A1E020E      SUB     BL,[0E02]		;*** absolute STARTPOS
+046F:1305 2A1E020E      SUB     BL,[STARTPOS]		;*** absolute STARTPOS
 		HAVTAB:
 046F:1309 2ADE          SUB     BL,DH                   
 046F:130B 02CB          ADD     CL,BL                   
@@ -1992,11 +2019,11 @@
 046F:13DD 3C7F          CMP     AL,7F                   
 046F:13DF 7405          JZ      OUTCH		;13E6                    
 046F:13E1 2E            SEG     CS                      
-046F:13E2 FE06010E      INC     B,[0E01]		;*** absolute CARPOS
+046F:13E2 FE06010E      INC     B,[CARPOS]		;*** absolute CARPOS
 		OUTCH:
 046F:13E6 9A09004000    CALL    BIOSOUT,BIOSSEG	;BIOSOUTP
 046F:13EB 2E            SEG     CS                      
-046F:13EC F606030EFF    TEST    B,[0E03],FF		;*** absolute
+046F:13EC F606030EFF    TEST    B,[PFLAG],FF		;*** absolute 0E03 print flag
 046F:13F1 7405          JZ      BOUT2		;13F8                    
 046F:13F3 9A0C004000    CALL    BIOSPRINT,BIOSSEG	;BIOSPRINT
 		BOUT2:
@@ -2020,12 +2047,12 @@
 
 		PRINTON:
 046F:141C 2E            SEG     CS                      
-046F:141D C606030E01    MOV     B,[0E03],01		;*** absolute PFFLAG
+046F:141D C606030E01    MOV     B,[PFLAG],01		;*** absolute PFFLAG
 046F:1422 C3            RET
 
 		PRINTOFF:
 046F:1423 2E            SEG     CS                      
-046F:1424 C606030E00    MOV     B,[0E03],00		;*** absolute
+046F:1424 C606030E00    MOV     B,[PFLAG],00		;*** absolute
 046F:1429 C3            RET
 
 		CTRLOUT:
@@ -2036,7 +2063,7 @@
 046F:1432 3C09          CMP     AL,09                   
 046F:1434 75B0          JNZ     OUTCH			;13E6                    
 046F:1436 2E            SEG     CS                      
-046F:1437 A0010E        MOV     AL,[0E01]		;*** absolute
+046F:1437 A0010E        MOV     AL,[CARPOS]		;*** absolute
 046F:143A 0CF8          OR      AL,F8                   
 046F:143C F6D8          NEG     AL
 		TAB:
@@ -2053,12 +2080,12 @@
 
 		ZERPOS:
 046F:144C 2E            SEG     CS                      
-046F:144D C606010E00    MOV     B,[0E01],00		;*** absolute
+046F:144D C606010E00    MOV     B,[CARPOS],00		;*** absolute
 046F:1452 EB92          JP      OUTCH		;13E6 
 
 		BACKPOS:
 046F:1454 2E            SEG     CS                      
-046F:1455 FE0E010E      DEC     B,[0E01] 		;*** absolute
+046F:1455 FE0E010E      DEC     B,[CARPOS] 		;*** absolute
 046F:1459 EB8B          JP      OUTCH		;13E6                    
 
 		;System call
@@ -2159,7 +2186,7 @@
 046F:14DB B90300        MOV     CX,0003                 
 046F:14DE E80C00        CALL    GETWORD		;14ED                    
 046F:14E1 2E            SEG     CS                      
-046F:14E2 8936F60F      MOV     [0FF6],SI		;*** absolute sisave
+046F:14E2 8936F60F      MOV     [SISAVE],SI		;*** absolute sisave
 046F:14E6 33C0          XOR     AX,AX                   
 046F:14E8 AB            STOW                            
 046F:14E9 AB            STOW                            
@@ -2240,13 +2267,17 @@
 046F:1547 C3            RET                             
 
 		;1548
-		;System call
+		;System call - create segment
+		;   IN:	DX= segment
+		;  OUT:	current PSP copied tp dx:100
+		;	dx:06 updated with memory size
+		;	dx:0a++ updated with terminate and ^C handlers
 		NEWBASE:
 046F:1548 8EC2          MOV     ES,DX                   
 046F:154A 2E            SEG     CS                      
-046F:154B 8E1EAD0F      MOV     DS,[0FAD]		;*** absolute
-046F:154F 33F6          XOR     SI,SI                   
-046F:1551 8BFE          MOV     DI,SI                   
+046F:154B 8E1EAD0F      MOV     DS,[CURPSP]	;*** absolute
+046F:154F 33F6          XOR     SI,SI		; existing PSP start
+046F:1551 8BFE          MOV     DI,SI		; new PSP start
 046F:1553 B98000        MOV     CX,0080                 
 046F:1556 F3            REPZ                            
 046F:1557 A5            MOVW
@@ -2272,34 +2303,34 @@
 046F:1558 33C9          XOR     CX,CX                   
 046F:155A 8ED9          MOV     DS,CX                   
 046F:155C 8EC2          MOV     ES,DX                   
-046F:155E BE8800        MOV     SI,0088		;exit
-046F:1561 BF0A00        MOV     DI,000A		;saveexit
+046F:155E BE8800        MOV     SI,EXIT		;0088  INTBASE+8
+046F:1561 BF0A00        MOV     DI,B_EXIT	; 0a saveexit
 046F:1564 A5            MOVW                            
 046F:1565 A5            MOVW                            
 046F:1566 A5            MOVW                            
 046F:1567 A5            MOVW                            
 046F:1568 2E            SEG     CS                      
-046F:1569 8B0E0F0E      MOV     CX,[0E0F] 		;*** absolute endmem
+046F:1569 8B0E0F0E      MOV     CX,[CURPSP] 		;*** absolute endmem
 046F:156D 26            SEG     ES                      
-046F:156E 890E0200      MOV     [0002],CX               
+046F:156E 890E0200      MOV     [B_ENDMEM],CX   	;endmem            
 046F:1572 2BCA          SUB     CX,DX                   
 046F:1574 81F9FF0F      CMP     CX,0FFF                 
-046F:1578 7603          JBE     HAVDIF	;157D                    
+046F:1578 7603          JBE     HAVDIF		;157D                    
 046F:157A B9FF0F        MOV     CX,0FFF
 
 		;157d
 		HAVDIF:
-046F:157D BB0C00        MOV     BX,000C 	;ENTRYPOINTSEG
+046F:157D BB0C00        MOV     BX,ENTRYPOINTSEG 	;000C
 046F:1580 2BD9          SUB     BX,CX                   
 046F:1582 D1E1          SHL     CX                      
 046F:1584 D1E1          SHL     CX                      
 046F:1586 D1E1          SHL     CX                      
 046F:1588 D1E1          SHL     CX                      
 046F:158A 8EDA          MOV     DS,DX                   
-046F:158C 890E0600      MOV     [0006],CX               
-046F:1590 891E0800      MOV     [0008],BX               
-046F:1594 C7060000CD20  MOV     W,[0000],20CD		;INT 20 INT INTTAB
-046F:159A C60605009A    MOV     B,[0005],LONGCALL	;9A             
+046F:158C 890E0600      MOV     [B_ENTRYL],CX           ; DOSENTRY DWORD
+046F:1590 891E0800      MOV     [B_ENTRYH],BX               
+046F:1594 C7060000CD20  MOV     W,[B_INT20],20CD	;INT 20 INT INTTAB
+046F:159A C60605009A    MOV     B,[B_LONGCALL],LONGCALL	;9A             
 046F:159F C3            RET
 
 		;15a0
@@ -2327,65 +2358,63 @@
 		; 15EC
 		WRTERR:	DB	0DH, 0AH, 'Disk write error', 0DH, 0AH, '$'
 		;***** ends at E00h
-		;
+		DOSLEN  EQU     CODSIZ+($-CONSTRT)      ;Size of CODE + CONSTANTS segments
+			ORG     DOSLEN
+			PUT	DOSLEN
+
 		; 1601/E01. E01-E04 are initialized in the object file. But,
 		; starting at E05h, the data retrieved from the disk looks like
 		; Intel HEX strings to E80h, so likely sector overhang. The HEX
 		; EOF marker is ":00000001FF". Will leave anything beyond E04h
 		; as uninitialized data for now.
 		;
-		UE01	db	0
-		UE02	db	0
-		UE03	db	0
-		UE04	db	0ffh
+		CARPOS	db	0	;E01
+		STARTPOS db	0	;E02
+		PFLAG	db	0	;E03
+		UE04	db	0ffh 	; something with searching
 		UE05	ds	2
 		UE07	ds	2
-		UE09	ds	2
-		EXITHOLD DS     4	; jump address
-		ENDMEM	ds	2
-		UE0F	ds	2
-		UE11	ds	2	; ends at 0E12
+		DEVNUM	ds	2	;E09
+		EXITHOLD DS     4	;E0B jump address
+		ENDMEM	ds	2	;E0F first unavailable segment
+		MAXSEC	ds	2	;E11
+		0E13	DS	239
+		0F02	ds 	16
+		0F12	ds	127	;DIRBUF
+		0F91	ds	1
+		NUMIO	DS	1	;0F92
+		NAME1	ds	11	;0F93 name1
+		NAME2	ds	11	;0F9E name2
+		DMAADD	ds	4	;0FA9 DMAADD dd
+		CURPSP	ds	2	;0FAD CURPSP current PSP
+		0FAF	ds	1	;DSKERR
 
-		DOSLEN  EQU     CODSIZ+($-CONSTRT)      ;Size of CODE + CONSTANTS segments
-
-		; Init code overlaps with data area below
-
-        		ORG     DOSLEN
-        		PUT     DOSLEN+100H	;??
-		;FCB	DW	0	;address of user FCB
-
-		; register saves
-		;UFA9 dx
-		;UFAB ds
-		;UFAD
-		TEMP	ds	2	;FAD
-		;
-		REGSAVE	ds 	24	;FEE register save area
-		
-		;UFF0 bx -ok
-		;UFF4 dx -ok
-		;UFF8 di?
-		;UFFA sp -bp?
-		;UFFC cs -ds?
-
-		;1000h
-		IOSTACK ds	3Ch
-		;U1000
-		SSSAVE	DW	0
-		;U1002
-		SPSAVE	DW	0
+			ALIGN
+		FCB	ds	2	;FB0 FCB
+		BYTPOS	ds	2	;FB2 
+		NEXTADD	ds	2	;0FB4 NXTADD
+		0FB6	ds	2
+		CLUSNUM	ds	2	; 0FB8
+		LASTPOS	ds	2 	;0FBA
+		0FBC	ds	48	;TRANSDM
+		REGSAVE:
+		AXSAVE	ds	2	;0FEE AXSAVE
+		BXSAVE	ds	2	;0FF0 BXSAVE 
+		0FF2	ds	2	;CXSAVE
+		DXSAVE	ds	2	;0FF4 DXSAVE
+		0FF6	ds	2	;0FF6 SISAVE
+		0FF8	ds	2	;0FF8 SSSAVE
+		0FFA	ds	2	;0FFA SPSAVE
+		CSSAVE	ds	2	;0FFC CSSAVE
+		0FFE	ds	2	;IP??
+		IOSTACK:
+		SSSAVE	ds	2	;1000 SSSAVE
+		SPSAVE	ds	2	;1002 SPSAVE
+		CURDRV	ds	2	;CURDRV 1004
+		DRVTAB	ds	2	;DRVTAB 1006
 		
 		;In 86DOS 100, uninitialized data starts here.
 		INBUF	ds	128	;80h
 		CONBUF	ds	131	;83h
-
-		
-		
-
-		;U1004	
-		CURDRV	DW	0
-		;U1006 -- this is the highest address referenced in the code and 
-		; is right before the start of free memory.
-		DRVTAB	DW	0
 		MEMSTRT:
 		END
