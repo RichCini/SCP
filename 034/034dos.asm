@@ -83,13 +83,11 @@
 			;80H  128 BYTES   command tail and default DTA
 
 			; Field definition for FCBs
-
-			FNAME   EQU     0       ;Drive code and name
-			EXTENT  EQU     12	;0C
-			;RECSIZ  EQU     14      ;Size of record (user settable)
-			;14
-			FILSIZ  EQU     16      ;10 Size of file in bytes
-			RECSIZ	EQU	18	;12
+			FFNAME	EQU     0       ;Drive code and name
+			EXTENT  EQU     12	;w 0C current block
+			RECSIZ  EQU     14	;w 0E Size of record (user settable)
+			FILSIZ  EQU     16      ;w 10 Size of file in bytes (dd later)
+			RECSIZ	EQU	18	;w 12
 			;FILSIZ  EQU     16      ;10 Size of file in bytes
 			;DRVBP   EQU     18      ;12 BP for SEARCH FIRST and SEARCH NEXT
 			;FDATE   EQU     20      ;14 Date of last writing
@@ -466,23 +464,29 @@
 
 		; Unimplemented calls return 0
 		;System call
-		RAWINP:
-		B_IN:
-		FLUSHKB:
-		GETFATPTDL:
-		GETRDONLY:
-		SETATTRIB:
-		USERCODE:
+		RAWINP:		;07
+		B_IN:		;08
+		FLUSHKB:	;12
+		GETFATPTDL:	;28
+		GETRDONLY:	;29
+		SETATTRIB:	;30
+		USERCODE:	;32
 0A27 B0 00		MOV	AL,0
 0A92			RET
 
-		;System call
+		;System call 3 - aux input (reader)
+		;   IN:	nothing
+		;  OUT:	AL = character read
+		;
 		READER:
 046F:0A2A 9A0F004000    CALL    BIOSAUXIN,BIOSSEG	;BIOSAUXIN
 046F:0A2F C3            RET
 
 		;a30h
-		;System call
+		;System call 4 - aux output (punch)
+		;   IN:	DL = character to write
+		;  OUT:	nothing
+		;
 		PUNCH:
 046F:0A30 8AC2          MOV     AL,DL                   
 046F:0A32 9A12004000    CALL    BIOSAUXOUT,BIOSSEG       ;BIOSAUXOUT 
@@ -588,7 +592,10 @@
 046F:0AC6 EBDE          JP      GETENTRY		;0AA6
 
 		;ac8
-		;System call
+		;System call 19 - delete a file
+		;   IN:	DS:DX = FCB
+		;  OUT:	AL = error flag
+		;
 		DELETE:
 046F:0AC8 E8B8FF        CALL    GETNAME		;0A83                    
 046F:0ACB 7270          JC      ERRET		;0B3D                    
@@ -623,7 +630,10 @@
 046F:0B01 C3            RET    
 
 		;b02h
-		;System call
+		;System call 23 - rename a file
+		;   IN:	DS:DX = modified FCB
+		;  OUT:	AL = found flag
+		;
 		RENAME:
 046F:0B02 E83B00        CALL    MOVNAME		;0B40                    
 046F:0B05 7236          JC      ERRET		;0B3D                    
@@ -694,7 +704,10 @@
 046F:0B6C C3            RET                             
 
 		;b6d
-		;System call
+		;System call 15 - open a file
+		;   IN:	DS:DX = FCB
+		;  OUT:	AL = error flag
+		;
 		OPEN:
 046F:0B6D 52            PUSH    DX                      
 046F:0B6E 1E            PUSH    DS                      
@@ -758,7 +771,10 @@
 046F:0BD2 EBD0          JP      LOC40		;0BA4    
 
 		;bd4
-		;System call
+		;System call 16 - close file
+		;   IN:	DS:DX = FCB
+		;  OUT:	AL = error flag
+		;
 		CLOSE:
 046F:0BD4 8BFA          MOV     DI,DX                   
 046F:0BD6 F6451CFF      TEST    B,[DI+1C],FF            
@@ -854,11 +870,14 @@
 046F:0C6B C3            RET                             
 
 		;c6c
-		;System call
+		;System call 22 - create a file
+		;   IN:	DS:DX = FCB
+		;  OUT:	AL = error flag
+		;
 		CREATE:
 046F:0C6C E8D1FE        CALL    MOVNAME		;B40                    
 046F:0C6F 7237          JC      ERRET3		;0CA8                    
-046F:0C71 BF930F        MOV     DI,NAME1		;NAME1 		;*** absolute
+046F:0C71 BF930F        MOV     DI,NAME1	;NAME1 		;*** absolute
 046F:0C74 B90B00        MOV     CX,000B		;11  
 046F:0C77 B03F          MOV     AL,"?"		;3F     
 046F:0C79 F2            REPNZ                           
@@ -1020,7 +1039,10 @@
 046F:0D5D C3            RET                             
 
 		;d5e
-		;System call
+		;System call 0 - program terminate
+		;   IN:	Nothing
+		;  OUT:	Nothing
+		;
 		ABORT:
 046F:0D5E 2E            SEG     CS                      
 046F:0D5F 8E1EAD0F      MOV     DS,[CURPSP]	;cssave		;*** absolute
@@ -1056,7 +1078,10 @@
 046F:0D97 FF2E0B0E      JMP     L,[EXITHOLD]		;*** absolute
 
 		;d9b
-		;System call
+		;System call 20 - sequential read a file
+		;   IN:	DS:DX = FCB
+		;  OUT:	AL = error flag
+		;
 		SEQRD:
 046F:0D9B E87F02        CALL	GETREC		;101D  
 046F:0D9E B90100        MOV     CX,0001                 
@@ -1066,7 +1091,10 @@
 046F:0DA7 EB45          JP      SETNREX		;0DEE    
 
 		;da9
-		;System call
+		;System call 21 - sequential write a file
+		;   IN:	DS:DX = FCB
+		;  OUT:	AL = error flag
+		;
 		SEQWRT:
 046F:0DA9 E87102        CALL	GETREC		;101D  
 046F:0DAC B90100        MOV     CX,0001                 
@@ -1076,7 +1104,10 @@
 046F:0DB5 EB37          JP      SETNREX		;0DEE
 
 		;db7
-		;System call
+		;System call 33 - random read a file
+		;   IN:	DS:DX = FCB
+		;  OUT:	AL = error flag
+		;
 		RNDRD:
 046F:0DB7 B90100        MOV     CX,0001                 
 046F:0DBA 8BFA          MOV     DI,DX                   
@@ -1085,7 +1116,10 @@
 046F:0DC2 EB26          JP      FINRND		;0DEA    
 
 		;dc4
-		;System call
+		;System call 34 - random write a file
+		;   IN:	DS:DX = FCB
+		;  OUT:	AL = error flag
+		;
 		RNDWRT:
 046F:0DC4 B90100        MOV     CX,0001                 
 046F:0DC7 8BFA          MOV     DI,DX                   
@@ -1094,7 +1128,11 @@
 046F:0DCF EB19          JP      FINRND		;0DEA   
 
 		;dd1
-		;System call
+		;System call 39 - random block read a file
+		;   IN:	DS:DX = FCB
+		;	CX = record count
+		;  OUT:	AL = error flag
+		;
 		BLKRD:
 046F:0DD1 8BFA          MOV     DI,DX                   
 046F:0DD3 8B4521        MOV     AX,[DI+RR]	; record position
@@ -1102,13 +1140,17 @@
 046F:0DD9 EB08          JP      FINBLK		;0DE3  
 
 		;ddb
-		;System call
+		;System call 40 - random block write a file
+		;   IN:	DS:DX = FCB
+		;	CX = record count
+		;  OUT:	AL = error flag
+		;
 		BLKWRT:
 046F:0DDB 8BFA          MOV     DI,DX                   
 046F:0DDD 8B4521        MOV     AX,[DI+RR]	; record position
 046F:0DE0 E84501        CALL	STORE 		;0F28 
 		FINBLK:
-046F:0DE3 890EF20F      MOV     [0FF2],CX 	;*** absolute cx save
+046F:0DE3 890EF20F      MOV     [CXSAVE],CX 	;*** absolute cx save
 046F:0DE7 E301          JCXZ    FINRND		;0DEA                    
 046F:0DE9 40            INC     AX                      
 		FINRND:
@@ -1521,7 +1563,10 @@
 046F:10C2 8BDF          MOV     BX,DI                   
 046F:10C4 EBF3          JP      GETEOF		;10B9        
 
-		;System call
+		;System call 17 - search for first file
+		;   IN:	DS:DX = FCB
+		;  OUT:	AL = error flag
+		;
 		SRCHFRST:
 046F:10C6 E8BAF9        CALL    GETNAME		;0A83 GETFILE?
 		SAVPLCE:
@@ -1556,7 +1601,10 @@
 		RET14:
 046F:10FA C3            RET                             
 
-		;System call
+		;System call 18 - search for next file
+		;   IN:	DS:DX = FCB
+		;  OUT:	AL = error flag
+		;
 		SRCHNXT:
 046F:10FB E842FA        CALL    MOVNAME		;0B40                    
 046F:10FE 72F5          JC      KILLSRCH	;10F5                    
@@ -1576,7 +1624,10 @@
 046F:1121 E86DF9        CALL    FND1A		;0A91                    
 046F:1124 EBA3          JP      SRCHFRST	;10C9       
 
-		;System call
+ 		;System call 35 - get file size
+		;   IN:	DS:DX = FCB
+		;  OUT:	AL = error flag
+		;
 		FILESIZE:
 046F:1126 1E            PUSH    DS                      
 046F:1127 52            PUSH    DX                      
@@ -1585,8 +1636,8 @@
 046F:112C 07            POP     ES                      
 046F:112D B0FF          MOV     AL,FF                   
 046F:112F 72C9          JC      RET14		;10FA                    
-046F:1131 83C721        ADD     DI,+21                  
-046F:1134 8D770D        LEA     SI,[BX+0D]              
+046F:1131 83C721        ADD     DI,RR           ;+21h RR field       
+046F:1134 8D770D        LEA     SI,[BX+0D]	;+13
 046F:1137 AC            LODB                            
 046F:1138 D0E0          SHL     AL                      
 046F:113A AD            LODW                            
@@ -1598,7 +1649,10 @@
 046F:1143 B000          MOV     AL,00                   
 046F:1145 C3            RET                             
 
-		;System call
+ 		;System call 26 - set disk I/O address (DMA)
+		;   IN:	DS:DX = I/O address
+		;  OUT:	None
+		;
 		SETDMA:
 046F:1146 2E            SEG     CS                      
 046F:1147 8916A90F      MOV     [DMAADD],DX 		;*** absolute DMAADD
@@ -1606,7 +1660,12 @@
 046F:114C 8C1EAB0F      MOV     [DMAADD+2],DS		;*** absolute DMAADD+2
 046F:1150 C3            RET  
 
-		;System call
+ 		;System call 27 - get allocation address
+		;   IN:	None
+		;  OUT:	DS:BX = address
+		;	DX = disk size
+		;	AL = block size
+		;
 		GETFATPT:
 046F:1151 8CC8          MOV     AX,CS                   
 046F:1153 8ED8          MOV     DS,AX                   
@@ -1623,7 +1682,10 @@
 046F:1174 8916F40F      MOV     [DXSAVE],DX		;*** absolute 0FF4
 046F:1178 C3            RET                
 
-		;System call
+ 		;System call 31 - get parameter address
+		;   IN:	None
+		;  OUT:	DS:BX = address
+		;
 		GETDSKPT:
 046F:1179 2E            SEG     CS                      
 046F:117A 8C0EFC0F      MOV     [CSSAVE],CS		;*** absolute CSSAVE
@@ -1633,7 +1695,10 @@
 046F:1184 891EF00F      MOV     [BXSAVE],BX 		;*** absolute 0FF0
 046F:1188 C3            RET                             
 
-		;System call
+ 		;System call 13 - disk system reset
+		;   IN:	None
+		;  OUT:	None
+		;
 		DSKRESET:
 046F:1189 2E            SEG     CS                      
 046F:118A 8C1EAB0F      MOV     [DMAADD+2],DS 		;*** absolute
@@ -1659,15 +1724,20 @@
 046F:11B5 9A1B004000    CALL    001B,BIOSSEG	;BIOSRETL
 046F:11BA C3            RET
 
-		;System call
+ 		;System call 25 - get default drive
+		;   IN:	None
+		;  OUT:	AL = default drive
+		;
 		GETDRV:
 046F:11BB 2E            SEG     CS                      
 046F:11BC 8B2E0410      MOV     BP,[CURDRV]		;*** absolute 1004
 046F:11C0 8A4600        MOV     AL,[BP+00]              
 046F:11C3 C3            RET                             
 
-		;System call
-		; Depreciated in 034
+ 		;System call 24 - disk in use?? UNDOCUMENTED
+		;   IN:	None
+		;  OUT:	Unknown
+		;
 		INUSE:
 046F:11C4 8CC8          MOV     AX,CS                   
 046F:11C6 8ED8          MOV     DS,AX                   
@@ -1690,7 +1760,10 @@
 046F:11E8 8AC3          MOV     AL,BL                   
 046F:11EA C3            RET     
 
-		;System call
+ 		;System call 36 - get file address
+		;   IN:	DS:DX = FCB
+		;  OUT:	None
+		;
 		SETRNDREC:
 046F:11EB E82FFE        CALL    GETREC		;101D                    
 046F:11EE 894521        MOV     [DI+21],AX              
@@ -1702,7 +1775,10 @@
 		RET16:
 046F:11FA C3            RET                             
 
-		;System call
+ 		;System call 14 - select default drive
+		;   IN:	DL = drive 
+		;  OUT:	AL = number of drives
+		;
 		SELDSK:
 046F:11FB B600          MOV     DH,00                   
 046F:11FD 8BDA          MOV     BX,DX                   
@@ -1717,7 +1793,10 @@
 		RET17:
 046F:1212 C3            RET                             
 
-		;System call
+ 		;System call 10 - input string
+		;   IN:	DS:DX = buffer
+		;  OUT:	AL = none
+		;
 		BUFIN:
 046F:1213 8CC8          MOV     AX,CS                   
 046F:1215 8EC0          MOV     ES,AX                   
@@ -1730,7 +1809,7 @@
 046F:1222 8AFD          MOV     BH,CH                   
 046F:1224 3AC3          CMP     AL,BL                   
 046F:1226 7605          JBE     NOEDIT		;122D                    
-046F:1228 82380D        CMP     B,[BX+SI],0D            
+046F:1228 82380D        CMP     B,[BX+SI],0D	; EOL?
 046F:122B 7402          JZ      EDITON		;122F
 		NOEDIT:
 046F:122D 8ADD          MOV     BL,CH                   
@@ -2010,7 +2089,10 @@
 046F:13D5 EB02          JP      B_OUT		;13D9
 
 		;13d7
-		;System call
+ 		;System call 2 - console output
+		;   IN:	DL = character
+		;  OUT:	None
+		;
 		CONOUT:
 046F:13D7 8AC2          MOV     AL,DL
 		B_OUT:
@@ -2088,14 +2170,20 @@
 046F:1455 FE0E010E      DEC     B,[CARPOS] 		;*** absolute
 046F:1459 EB8B          JP      OUTCH		;13E6                    
 
-		;System call
+ 		;System call 11 - check console status
+		;   IN:	None
+		;  OUT:	AL = character if ready, 0 if not
+		;
 		CONSTAT:
 046F:145B 9A03004000    CALL    BIOSSTAT,BIOSSEG	;far ptr BIOSSTATUS
 046F:1460 74E9          JZ      RET20		';144B                    
 046F:1462 0CFF          OR      AL,FF                   
 046F:1464 C3            RET                             
 
-		;System call
+ 		;System call 1 - console input
+		;   IN:	None
+		;  OUT:	AL = character
+		;
 		CONIN:
 046F:1465 E897FF        CALL    INCHK		;13FF                    
 046F:1468 50            PUSH    AX                      
@@ -2103,14 +2191,21 @@
 046F:146C 58            POP     AX                      
 046F:146D C3            RET
 
-		;System call
+ 		;System call 8 - console input (blocking) UNDOCUMENTED
+		;   IN:	Nothing
+		;  OUT:	AL = character
+		;
 		B_IN:
 046F:146E E88EFF        CALL    INCHK		;13FF                    
 046F:1471 74FB          JZ      B_IN		;146E
 		RET22:
 046F:1473 C3            RET                             
 
-		;System call
+ 		;System call 6 - direct console I/O
+		;   IN:	DL = 0FFh or character
+		;  OUT:	AL = If DL=0FFh, character if ready, 0 if not
+		;	     If DL is a character, the None
+		;
 		RAWIO:
 046F:1474 8AC2          MOV     AL,DL                   
 046F:1476 3CFF          CMP     AL,FF                   
@@ -2126,14 +2221,20 @@
 046F:1487 9A09004000    CALL    BIOSOUT,BIOSSEG 	;BIOSOUTP
 046F:148C C3            RET                             
 
-		;System call
+ 		;System call 5 - printer output
+		;   IN:	DL = character
+		;  OUT:	None
+		;
 		LIST:
 046F:148D 8AC2          MOV     AL,DL                   
 046F:148F 9A0C004000    CALL    BIOSPRINT,BIOSSEG 	;BIOSPRINT
 		INCHK:
 046F:1494 C3            RET                             
 
-		;System call
+ 		;System call 9 - output a string
+		;   IN:	DS:DX = string terminated with "$"
+		;  OUT:	AL = None
+		;
 		PRTBUF:
 046F:1495 8BF2          MOV     SI,DX
 		OUTSTR:
@@ -2152,7 +2253,12 @@
 046F:14A7 E82FFF        CALL    B_OUT		;13D9                    
 046F:14AA EBF5          JP      OUTMES  
 
-		;System call
+ 		;System call 41 - parse filename
+		;   IN:	DS:SI = Input line
+		;	ES:DI = FCB
+		;	AL = 0 (no pre-scanning); AL = 1 (scan for separators)
+		;  OUT:	SI is updated
+		;
 		MAKEFCB:
 046F:14AC B200          MOV     DL,00		;Flag--not ambiguous file name
 046F:14AE 0AC0          OR      AL,AL                   
@@ -2253,7 +2359,11 @@
 046F:1535 C3            RET                             
 
 		;1536
-		;System call
+ 		;System call 37 - set vector
+		;   IN:	DS:DX = vector address
+		;	AL = interrupt type
+		;  OUT:	None
+		;
 		SETVECT:
 046F:1536 33DB          XOR     BX,BX                   
 046F:1538 8EC3          MOV     ES,BX                   
@@ -2267,9 +2377,10 @@
 046F:1547 C3            RET                             
 
 		;1548
-		;System call - create segment
+		;System call 38 - create segment
 		;   IN:	DX= segment
-		;  OUT:	current PSP copied tp dx:100
+		;  OUT:	None
+		;	current PSP copied tp dx:100
 		;	dx:06 updated with memory size
 		;	dx:0a++ updated with terminate and ^C handlers
 		NEWBASE:
@@ -2400,7 +2511,7 @@
 		REGSAVE:
 		AXSAVE	ds	2	;0FEE AXSAVE
 		BXSAVE	ds	2	;0FF0 BXSAVE 
-		0FF2	ds	2	;CXSAVE
+		CXSAVE	ds	2	;0FF2 CXSAVE
 		DXSAVE	ds	2	;0FF4 DXSAVE
 		0FF6	ds	2	;0FF6 SISAVE
 		0FF8	ds	2	;0FF8 SSSAVE
