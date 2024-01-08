@@ -1348,7 +1348,7 @@
 046F:0F54 E81EFF        CALL    LOOPE75		;0E75                    
 046F:0F57 53            PUSH    BX
 		LOCF58:
-046F:0F58 5B
+046F:0F58 5B		POP	BX
 		LOCF59:
 046F:0F59 8A16B20F      MOV     DL,[BYTPOS]		;*** absolute
 046F:0F5D 225602        AND     DL,[BP+02]              
@@ -2152,8 +2152,8 @@
 046F:143E 51            PUSH    CX
 046F:143F 8AC8          MOV     CL,AL                   
 046F:1441 B500          MOV     CH,00                   
-046F:1443 B020          MOV     AL," " 
 		TABLP:
+046F:1443 B020          MOV     AL," " 
 046F:1445 E891FF        CALL    B_OUT		;13D9                    
 046F:1448 E2F9          LOOP    TABLP		;1443                    
 046F:144A 59            POP     CX
@@ -2483,6 +2483,8 @@
 		STARTPOS db	0	;E02
 		PFLAG	db	0	;E03
 		UE04	db	0ffh 	; something with searching
+		; In 010, this is all 0's on the disk image so maybe they were statically
+		; initialzied in 010 and unitialzied in 034.
 		UE05	ds	2
 		UE07	ds	2
 		DEVNUM	ds	2	;E09
