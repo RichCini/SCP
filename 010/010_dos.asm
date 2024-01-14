@@ -1,72 +1,42 @@
+
+			TITLE 86dos.asm
+			;
+			;* This was extracted from a disk image provided by
+			;* Gene Buckle on 12/29/23. The disk label is:
+			;* 86-DOS Version 0.11-C - Serial #11 (ORIGINAL DISK).imd
+
+			FALSE	EQU	0
+			TRUE	EQU	1
+
+			BKSPACE EQU	8
+			HTAB	EQU	9
+			ESCCH   EQU     1BH
+			CANCEL  EQU     "X"-"@"         ;Cancel with Ctrl-X
+
+			; although ORGed at 0, it's located at 800h
+			ORG 0
+		CODSTRT EQU $
 046F:0000 E96000        JMP     DOSINIT      
-
+		;0003
 		ESCTAB:
-046F:0003 53            PUSH    BX                      
-046F:0004 43            INC     BX                      
-046F:0005 56            PUSH    SI                      
-046F:0006 4E            DEC     SI                      
-046F:0007 54            PUSH    SP                      
-046F:0008 41            INC     CX                      
-046F:0009 57            PUSH    DI                      
-046F:000A 42            INC     DX                      
-046F:000B 55            PUSH    BP                      
-046F:000C 48            DEC     AX                      
-046F:000D 48            DEC     AX                      
-046F:000E 48            DEC     AX                      
-046F:000F 52            PUSH    DX                      
-046F:0010 4D            DEC     BP                      
-046F:0011 44            INC     SP                      
-046F:0012 44            INC     SP                      
-046F:0013 50            PUSH    AX                      
-046F:0014 40            INC     AX                      
-046F:0015 51            PUSH    CX                      
-046F:0016 4C            DEC     SP                      
-046F:0017 1B1B          SBB     BX,[BP+DI]              
-046F:0019 1B1B          SBB     BX,[BP+DI]
+			DB      "SC"     ;Copy one character from template
+			DB      "VN"     ;Skip over one character in template
+			DB      "TA"     ;Copy up to specified character
+			DB      "WB"     ;Skip up to specified character
+			DB      "UH"     ;Copy rest of template
+			DB      "HH"     ;Kill line with no change in template (Ctrl-X)
+			DB      "RM"     ;Cancel line and update template
+			DB      "DD"     ;Backspace (same as Ctrl-H)
+			DB      "P@"     ;Enter Insert mode
+			DB      "QL"     ;Exit Insert mode
+			DB      1BH,1BH  ;Escape sequence to represent escape character
+			DB      ESCCH,ESCCH
+		ESCTABLEN EQU   $-ESCTAB
 
-		HEADER:
-046F:001B 0D0A38        OR      AX,380A                 
-046F:001E 36            SEG     SS                      
-046F:001F 2D444F        SUB     AX,4F44                 
-046F:0022 53            PUSH    BX                      
-046F:0023 207665        AND     [BP+65],DH              
-046F:0026 7273          JC      009B                    
-046F:0028 69            DB      69                      
-046F:0029 6F            DB      6F                      
-046F:002A 6E            DB      6E                      
-046F:002B 2030          AND     [BX+SI],DH              
-046F:002D 2E            SEG     CS                      
-046F:002E 3131          XOR     [BX+DI],SI              
-046F:0030 0D0A43        OR      AX,430A                 
-046F:0033 6F            DB      6F                      
-046F:0034 7079          JO      00AF                    
-046F:0036 7269          JC      00A1                    
-046F:0038 67            DB      67                      
-046F:0039 68            DB      68                      
-046F:003A 7420          JZ      005C                    
-046F:003C 3139          XOR     [BX+DI],DI              
-046F:003E 3830          CMP     [BX+SI],DH              
-046F:0040 205365        AND     [BP+DI+65],DL           
-046F:0043 61            DB      61                      
-046F:0044 7474          JZ      00BA                    
-046F:0046 6C            DB      6C                      
-046F:0047 65            DB      65                      
-046F:0048 20436F        AND     [BP+DI+6F],AL           
-046F:004B 6D            DB      6D                      
-046F:004C 7075          JO      00C3                    
-046F:004E 7465          JZ      00B5                    
-046F:0050 7220          JC      0072                    
-046F:0052 50            PUSH    AX                      
-046F:0053 726F          JC      00C4                    
-046F:0055 64            DB      64                      
-046F:0056 7563          JNZ     00BB                    
-046F:0058 7473          JZ      00CD                    
-046F:005A 2C20          SUB     AL,20                   
-046F:005C 49            DEC     CX                      
-046F:005D 6E            DB      6E                      
-046F:005E 63            DB      63                      
-046F:005F 2E            SEG     CS                      
-046F:0060 0D0A24        OR      AX,240A
+		;001B
+		HEADER: DB      13,10,"86-DOS version 0.11"
+        		DB      13,10
+        		DB      "Copyright 1980 Seattle Computer Products, Inc.",13,10,"$"
 
 		DOSINIT:
 046F:0063 FA            DI                              
@@ -1913,27 +1883,73 @@
 			;ORG	0
 		;0C87 - 0CD8
 		CONSTRT	EQU	$		;Start of initialized data
-		; 15AF
 		BADFAT: DB	0DH, 0AH, 'Bad FAT', 0DH, 0AH, '$'
-		; 15B8
 		FATSBAD: DB	0DH, 0AH, 'All FATs on disk are bad', 0DH, 0AH, '$'
-		; 15D8
 		RDERR:	DB	0DH, 0AH, 'Disk read error', 0DH, 0AH, '$'
-		; 15EC
 		WRTERR:	DB	0DH, 0AH, 'Disk write error', 0DH, 0AH, '$'
-		;***** ends at E00h
-		DOSLEN  EQU     CODSIZ+($-CONSTRT)      ;Size of CODE + CONSTANTS segments
 		;this is the same as 034.
 046F:0CD9 0000          dw	0         
-046F:0CDB 00FF          dw	0xff00                   
-		;0CDD
-		; In 010, this is all 0's on the disk image so maybe they were statically
-		; initialzied in 010 and unitialzied in 034.
-		; all zeros until 157E
-		buffer		ds	2212
+046F:0CDB 00FF          dw	0xff00
+		DOSLEN  EQU     CODSIZ+($-CONSTRT)      ;Size of CODE + CONSTANTS segments
+		;this is the same as 034.
 
-		;157F
-046F:157F 00FF          ADD     BH,BH                   
+		;0CDD - 157F
+		; In 010, this is all 0's on the disk image so maybe they were statically
+		; initialzied in 010 and unitialzied in 034. A totally blank disk would 
+		; have a fill byte of 0xE5. In v034, the total uninitialized area is ~772
+		; bytes.
+		buffer	db	2213 dup (0)
+
+		; The Programmer's Guide notes that the system tracks are 52 sectors long, 
+		; sort of like CP/M which "hides" the whole system within the system 
+		; tracks and they're not part of the files accessed by the directory.
+		; Assuming 0-start, here is a layout with absolute memory references:
+		;	  BOOT: C0/H0/S1
+		;	DOSIO is loaded to 400H by the loader
+		;	 DOSIO: C0/H0/S2 to C0/H0/S9 (8*128) (0400-07FF) has 100h buffer
+		;	 86DOS: C0/H0/S10 to C1/H0/S9 (26*128) (0800-14FF)
+		;	buffer: C1/H0/S10 to C1/H0/S26 (17*128) (1500-1D80)
+		;	  FAT1: C2/H0/S1 - S6
+		;	  FAT2: C2/H0/S7 - S12
+		;	   DIR: C2/H0/S13 - S20 8 sectors, 64 names, 16 bytes per entry.
+		;	  DATA: C2/H0/S21
+		;
+		; As it applied to 8" MS-DOS, doc notes that logical_sector = 
+		; alloc_unit * 4 + 22 (4 sectors per allocation unit). First allocation unit
+		; is 2 (2-494 for 8" disk, 2002 total sectors). Start is Sector 30, 30-22/4 = 2
+		; because the system files sat within the data area and referenced in the 
+		; directory and FAT, while earlier versions were not.
+		; Standard 8: LSN is 0-2001 with SPT=26 and T=77 and 128b
+		;
+		; Note that 010 directory program doesn't print the file size. 034 does show
+		; the file size, so decimal sizes are shown below and they match the sizes.
+		;
+		; sample directory:
+		;  NAME    EXT -FAT- size  ??
+		;  ======= === ===== ===== ==
+		;  COMMAND COM 02 00 00 05 00	1280
+		;  RDCPM   COM 05 00 80 03 00	 896
+		;  HEX2BIN COM 07 00 80 01 00	 384
+		;  ASM     COM 08 00 00 1A 00	6656
+		;  TRANS   COM 15 00 80 0C 00	3200
+		;  SYS     COM 1C 00 00 01 00	 256
+		;  EDLIN   COM 1D 00 00 05 00	1280
+		;  CHESS   COM 1d 00 00 19 00	6400
+		;  CHESS   DOC 2D 00 80 03 00	 896
+
+		; Attributes in MS-DOS
+		; Bit 7-6 Reserved
+		;   5  Archive
+		;   4  Reserved (DOS=Subdirectory)
+		;   3  Reserved (DOS=Volume label)
+		;   2  System file
+		;   1  Hidden file
+		;   0  Read only
+
+		;1580-15C6 - this matches cylinder 2, sector 1 which is the FAT. Since 
+		; code is 0-offset, add 800H (=1D80) which is the absolute byte in the 
+		; disk image.
+046F:1580 FF                   
 046F:1581 FFFF          ???     DI                      
 046F:1583 034000        ADD     AX,[BX+SI+00]           
 046F:1586 FF6F00        JMP     L,[BX+00]               
@@ -1970,6 +1986,6 @@
 046F:15C3 EF            OUTW    DX                      
 046F:15C4 02FF          ADD     BH,BH                   
 046F:15C6 0F            POP     CS          
-		;15C7 - 1855
-		; all zeros
-		;end
+		;15C7 - 1855: all zeros
+		MEMSTRT:
+		END
