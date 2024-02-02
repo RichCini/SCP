@@ -1,0 +1,6 @@
+﻿  fixsum.c
+  Generating code
+  Finished generating code
+  Previous IPDB not found, fall back to full compilation.
+  All 7 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Fixsum.vcxproj -> \\Mac\Home\Documents\Visual Studio Projects\SCP Tools\Fixsum\Release\Fixsum.exe
